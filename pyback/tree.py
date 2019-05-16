@@ -16,7 +16,7 @@ class TreeNode:
 
     @staticmethod
     def build_tree_node(path, name):
-        if os.path.isfile(path):
+        if os.path.isfile(path) or os.path.islink(path):
             return TreeNode(name, [], is_file=True)
 
         children = []
