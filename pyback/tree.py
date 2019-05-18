@@ -1,23 +1,27 @@
 import json
 import os
+import stat
 
 from .utils import get_file_digest, get_symlink_digest, get_directory_digest
 
 
 class TreeNode:
-    def __init__(self, name, checksum):
+    def __init__(self, name, checksum, permissions):
         self.name = name
         self.checksum = checksum
+        self.permissions = permissions
 
     def to_dict(self):
         raise NotImplementedError()
 
     @staticmethod
     def build_tree_node(path, name):
+        file_permissions = stat.S_IMODE(os.lstat(path).st_mode)
+
         if os.path.isfile(path) and not os.path.islink(path):
-            return FileNode(name, get_file_digest(path))
+            return FileNode(name, get_file_digest(path), file_permissions)
         elif os.path.islink(path):
-            return SymlinkNode(name, get_symlink_digest(path))
+            return SymlinkNode(name, get_symlink_digest(path), file_permissions)
         elif os.path.isdir(path):
             children = dict()
 
@@ -27,7 +31,7 @@ class TreeNode:
 
             child_checksums = [children[child_name].checksum for child_name in sorted(children.keys())]
             directory_digest = get_directory_digest(*child_checksums)
-            return DirectoryNode(name, directory_digest, children)
+            return DirectoryNode(name, directory_digest, file_permissions, children)
         
         raise Error('Unknown content.')
 
@@ -44,21 +48,22 @@ class TreeNode:
 
 
 class DirectoryNode(TreeNode):
-    def __init__(self, name, checksum, children):
-        super().__init__(name, checksum)
+    def __init__(self, name, checksum, permissions, children):
+        super().__init__(name, checksum, permissions)
         self.children = children
 
     def to_dict(self):
         return {
                 'name': self.name,
                 'checksum': self.checksum,
+                'permissions': self.permissions,
                 'children': [child.to_dict() for child in self.children.values()],
                 'type': 'directory',
                }
 
     @staticmethod
     def from_dict(d):
-        return DirectoryNode(d['name'], d['checksum'], {child['name']: TreeNode.from_dict(child) for child in d['children']})
+        return DirectoryNode(d['name'], d['checksum'], d['permissions'], {child['name']: TreeNode.from_dict(child) for child in d['children']})
 
 
 class FileNode(TreeNode):
@@ -66,12 +71,13 @@ class FileNode(TreeNode):
         return {
                 'name': self.name,
                 'checksum': self.checksum,
+                'permissions': self.permissions,
                 'type': 'file',
                }
 
     @staticmethod
     def from_dict(d):
-        return FileNode(d['name'], d['checksum'])
+        return FileNode(d['name'], d['checksum'], d['permissions'])
 
 
 class SymlinkNode(TreeNode):
@@ -79,11 +85,12 @@ class SymlinkNode(TreeNode):
         return {
                 'name': self.name,
                 'checksum': self.checksum,
+                'permissions': self.permissions,
                 'type': 'symlink',
                }
 
     def from_dict(d):
-        return SymlinkNode(d['name'], d['checksum'])
+        return SymlinkNode(d['name'], d['checksum'], d['permissions'])
 
 
 class Tree:

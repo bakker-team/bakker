@@ -6,12 +6,33 @@ from pyback.tree import Tree
 
 class TestIndexing(unittest.TestCase):
     def setUp(self):
-        self.CURRENT_DIR = path.dirname(path.abspath(__file__))
+        self.indexing_folder = path.join(
+                path.dirname(path.abspath(__file__)),
+                '../resources/tests/backup_indexing_test_folder'
+                )
 
     def test_tree_building(self):
-        tree = Tree.build_tree(path.join(
-            self.CURRENT_DIR,
-            '../resources/tests/backup_indexing_test_folder'))
+        tree = Tree.build_tree(self.indexing_folder)
+                
         expected_children_count = 6
         self.assertEqual(expected_children_count, len(tree.root.children))
+
+    def test_file_permission(self):
+        # Windows / Linux Subsystem on Windows cannot handle this test correctly and therefore needs to be excluded.
+        import platform
+        if platform.system() == 'Windows':
+            return
+        if 'Microsoft' in platform.release():
+            return
+
+        file_path = path.join(self.indexing_folder, '100000_lines.md')
+        symlink_path = path.join(self.indexing_folder, '100000_lines_symlink')
+
+        file_permissions = 0o644
+        symlink_permissions = 0o777
+
+        tree = Tree.build_tree(self.indexing_folder)
+
+        self.assertEqual(tree.root.children['100000_lines.md'].permissions, file_permissions)
+        self.assertEqual(tree.root.children['100000_lines_symlink'].permissions, symlink_permissions)
 

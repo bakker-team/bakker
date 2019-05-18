@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from pyback.tree import Tree
+from pyback.tree import Tree, DirectoryNode
 
 
 class TestTreeSerialization(unittest.TestCase):
@@ -25,9 +25,10 @@ class TestTreeSerialization(unittest.TestCase):
         
     def check_tree_nodes(self, tree_node_a, tree_node_b):
         self.assertEqual(tree_node_a.name, tree_node_b.name)
-        self.assertEqual(tree_node_a.is_file, tree_node_b.is_file)
-        # check all children
-        for name, child_node_a in tree_node_a.children.items():
-            child_node_b = tree_node_b.children[name]
-            self.check_tree_nodes(child_node_a, child_node_b)
+        self.assertEqual(tree_node_a.__class__, tree_node_b.__class__)
+
+        if isinstance(tree_node_a, DirectoryNode):
+            for name, child_node_a in tree_node_a.children.items():
+                child_node_b = tree_node_b.children[name]
+                self.check_tree_nodes(child_node_a, child_node_b)
 
