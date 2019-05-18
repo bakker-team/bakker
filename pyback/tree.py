@@ -10,28 +10,26 @@ class TreeNode:
     def to_dict(self):
         return {
                 'name': self.name,
-                'children': [child.to_dict() for child in self.children],
+                'children': [child.to_dict() for child in self.children.values()],
                 'is_file': self.is_file
                }
 
     @staticmethod
     def build_tree_node(path, name):
         if os.path.isfile(path) or os.path.islink(path):
-            return TreeNode(name, [], is_file=True)
+            return TreeNode(name, dict(), is_file=True)
 
-        children = []
+        children = dict()
 
-        for item in os.listdir(path):
-            item_path = os.path.join(path, item)
-
-            node = TreeNode.build_tree_node(item_path, item)
-            children.append(node)
+        for child_name in os.listdir(path):
+            child_path = os.path.join(path, child_name)
+            children[child_name] = TreeNode.build_tree_node(child_path, child_name)
 
         return TreeNode(name, children)
 
     @staticmethod
     def from_dict(d):
-        return TreeNode(d['name'], [TreeNode.from_dict(child) for child in d['children']], is_file=d['is_file'])
+        return TreeNode(d['name'], {child['name']: TreeNode.from_dict(child) for child in d['children']}, is_file=d['is_file'])
 
 class Tree:
     def __init__(self, path, root):
