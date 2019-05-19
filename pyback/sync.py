@@ -4,32 +4,33 @@ import shutil
 
 import xxhash
 
-from pyback.tree import Tree, FileNode, SymlinkNode
+from pyback.checkpoint import Checkpoint, FileNode, SymlinkNode
 
 
 class Storage(ABC):
     @abstractmethod
-    def has_file(self, file_hash):
+    def has_file(self, checksum):
+        pass
+
+    # remove file path -> the storage should decide where and how to store the file
+    @abstractmethod
+    def store_file(self, file_path, checksum):
         pass
 
     @abstractmethod
-    def send_file(self, file_path, file_hash):
+    def retrieve_file(self, checksum, dst_file_path):
         pass
 
     @abstractmethod
-    def receive_file(self, file_path, file_hash):
+    def store_checkpoint(self, checkpoint, checkpoint_id):
         pass
 
     @abstractmethod
-    def send_tree(self, tree, key):
+    def retrieve_checkpoint_ids(self):
         pass
 
     @abstractmethod
-    def receive_tree_keys(self):
-        pass
-
-    @abstractmethod
-    def receive_tree(self, key):
+    def retrieve_checkpoint(self, checkpoint_id):
         pass
 
 
@@ -44,52 +45,72 @@ class FileSystemStorage(Storage):
         self.tree_path = os.path.join(path, self.TREE_DIR)
         self.file_path = os.path.join(path, self.FILE_DIR)
 
-    def has_file(self, file_hash):
-        return os.path.isfile(os.path.join(self.file_path, file_hash + self.FILE_EXT))
+    def has_file(self, checksum):
+        return os.path.isfile(os.path.join(self.file_path, checksum + self.FILE_EXT))
 
-    def send_file(self, file_path, file_hash):
-        dst_file_path = os.path.join(self.file_path, file_hash + self.FILE_EXT)
+    def store_file(self, file_path, checksum):
+        dst_file_path = os.path.join(self.file_path, checksum + self.FILE_EXT)
         if os.path.isfile(dst_file_path):
-            raise FileExistsError(file_hash)
+            raise FileExistsError(checksum)
         if not os.path.exists(os.path.dirname(dst_file_path)):
             os.makedirs(os.path.dirname(dst_file_path))
         shutil.copyfile(file_path, dst_file_path, follow_symlinks=False)
 
-    def receive_file(self, file_path, file_hash):
-        src_file_path = os.path.join(self.file_path, file_hash + self.FILE_EXT)
+    def retrieve_file(self, checksum, dst_file_path):
+        src_file_path = os.path.join(self.file_path, checksum + self.FILE_EXT)
         if not os.path.isfile(src_file_path):
-            raise FileNotFoundError(file_hash)
-        shutil.copyfile(src_file_path, file_path)
+            raise FileNotFoundError(checksum)
+        shutil.copyfile(src_file_path, dst_file_path)
 
-    def send_tree(self, tree, key):
-        tree_file_path = os.path.join(self.tree_path, key + self.TREE_FILE_EXT)
+    def store_checkpoint(self, checkpoint, checkpoint_id):
+        tree_file_path = os.path.join(self.tree_path, checkpoint_id + self.TREE_FILE_EXT)
         if os.path.isfile(tree_file_path):
-            raise FileExistsError(key)
+            raise FileExistsError(checkpoint_id)
         if not os.path.exists(os.path.dirname(tree_file_path)):
             os.makedirs(os.path.dirname(tree_file_path))
         with open(tree_file_path, 'w') as f:
-            f.write(tree.to_json())
+            f.write(checkpoint.to_json())
 
-    def receive_tree_keys(self):
-        return [key[:-len(self.TREE_FILE_EXT)] for key in os.listdir(self.tree_path) if key[-len(self.TREE_FILE_EXT):] == self.TREE_FILE_EXT]
+    # TODO We should probably also retrieve some metadata about the checkpoint
+    #  except from the name to allow the user to chose between checkpoints depending on a timestamp, name etc.
+    def retrieve_checkpoint_ids(self):
+        return [checkpoint[:-len(self.TREE_FILE_EXT)] for checkpoint in os.listdir(self.tree_path) if checkpoint[-len(self.TREE_FILE_EXT):] == self.TREE_FILE_EXT]
 
-    def receive_tree(self, key):
-        tree_file_path = os.path.join(self.tree_path, key + self.TREE_FILE_EXT)
-        if not os.path.is_file(tree_file_path):
-            raise FileNotFoundError(key)
-        with open(tree_file_path, 'r') as f:
-            return Tree.from_json(f.read(), '')
+    def retrieve_checkpoint(self, checkpoint_id):
+        checkpoint_file_path = os.path.join(self.tree_path, checkpoint_id + self.TREE_FILE_EXT)
+        if not os.path.isfile(checkpoint_file_path):
+            raise FileNotFoundError(checkpoint_id)
+        with open(checkpoint_file_path, 'r') as f:
+            return Checkpoint.from_json(f.read(), '')
 
 
-def send(connector, tree):
-    for node, node_path in tree.dfs_iter():
-        if isinstance(node, FileNode) and not connector.has_file(node.checksum):
-            connector.send_file(node_path, node.checksum)
-        elif isinstance(node, SymlinkNode) and not connector.has_file(node.checksum):
-            connector.send_file(node_path, node.checksum)
+def store(storage, checkpoint):
+    for node, node_path in checkpoint.iter():
+        if isinstance(node, FileNode) and not storage.has_file(node.checksum):
+            storage.store_file(node_path, node.checksum)
+        elif isinstance(node, SymlinkNode) and not storage.has_file(node.checksum):
+            storage.store_file(node_path, node.checksum)
 
     message = xxhash.xxh64()
-    message.update(tree.time.isoformat())
-    key = message.hexdigest()
+    message.update(checkpoint.time.isoformat())
+    checkpoint_id = message.hexdigest()
 
-    connector.send_tree(tree, key)
+    storage.store_checkpoint(checkpoint, checkpoint_id)
+
+def retrieve(storage, checkpoint_id, dst_dir_path):
+    """ Retrieves a checkpoint from a backup directory and builds it inside path.
+
+    :param storage: The s
+    :param checkpoint:
+    :param path:
+    :return:
+    """
+
+    checkpoint = storage.retrieve_checkpoint(checkpoint_id)
+    for item, path in checkpoint.iter():
+        retrieve_file(item.checksum, )
+
+
+
+
+

@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from pyback.tree import Tree, DirectoryNode
+from pyback.checkpoint import Checkpoint, DirectoryNode
 
 
 class TestTreeSerialization(unittest.TestCase):
@@ -9,18 +9,18 @@ class TestTreeSerialization(unittest.TestCase):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         test_resources_dir = os.path.join(current_dir, '../resources/tests')
         
-        self.tree = Tree.build_tree(test_resources_dir)
+        self.tree = Checkpoint.build_checkpoint(test_resources_dir)
     
     def test_serialization(self):
         tree_json = self.tree.to_json()
         self.assertIsInstance(tree_json, str)
 
     def test_deserialization(self):
-        new_tree = Tree.from_json(self.tree.to_json(), '')
-        self.assertIsInstance(new_tree, Tree)
+        new_tree = Checkpoint.from_json(self.tree.to_json(), '')
+        self.assertIsInstance(new_tree, Checkpoint)
 
     def test_serialized_structure(self):
-        new_tree = Tree.from_json(self.tree.to_json(), '')
+        new_tree = Checkpoint.from_json(self.tree.to_json(), '')
         self.check_tree_nodes(self.tree.root, new_tree.root)
         
     def check_tree_nodes(self, tree_node_a, tree_node_b):

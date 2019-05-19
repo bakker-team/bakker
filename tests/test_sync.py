@@ -2,8 +2,8 @@ import os
 import tempfile
 import unittest
 
-from pyback.sync import FileSystemStorage, send
-from pyback.tree import Tree
+from pyback.sync import FileSystemStorage, store
+from pyback.checkpoint import Checkpoint
 from pyback.utils import get_file_digest, get_symlink_digest
 
 
@@ -11,7 +11,7 @@ class TestFileSystemStorage(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
 
-    def test_send(self):
+    def test_backup(self):
         def dfs_file_checksums(path):
             for file_name in os.listdir(path):
                 file_path = os.path.join(path, file_name)
@@ -27,12 +27,12 @@ class TestFileSystemStorage(unittest.TestCase):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         test_resources_path = os.path.join(current_dir, '../resources/tests/backup_indexing_test_folder')
         
-        tree = Tree.build_tree(test_resources_path)
+        checkpoint = Checkpoint.build_checkpoint(test_resources_path)
 
         temp_path = self.temp_dir.name
 
-        connector = FileSystemStorage(temp_path)
-        send(connector, tree)
+        storage = FileSystemStorage(temp_path)
+        store(storage, checkpoint)
 
         remote_file_checksums = os.listdir(os.path.join(temp_path, FileSystemStorage.FILE_DIR))
         file_checksums = list(dfs_file_checksums(test_resources_path))

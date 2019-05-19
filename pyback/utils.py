@@ -19,6 +19,7 @@ def get_file_digest(file_path):
 
     return message.hexdigest()
 
+
 def get_symlink_digest(symlink_path):
     assert os.path.islink(symlink_path)
 
@@ -27,16 +28,18 @@ def get_symlink_digest(symlink_path):
 
     return message.hexdigest()
 
+
 def get_directory_digest(*child_digests):
     message = xxhash.xxh64()
     for child_digest in child_digests:
         message.update(child_digest)
     return message.hexdigest()
 
-TIME_ISO_FORMAT = '%Y-%m-%dT%H:%M:%S'
-TIME_ISO_FORMAT_MILLISECONDS = '%Y-%m-%dT%H:%M:%S.%f'
 
-def datetime_fromisoformat(string):
+def datetime_from_iso_format(string):
+    TIME_ISO_FORMAT = '%Y-%m-%dT%H:%M:%S'
+    TIME_ISO_FORMAT_MILLISECONDS = '%Y-%m-%dT%H:%M:%S.%f'
+
     if len(string) == 19:
         return datetime.strptime(string, TIME_ISO_FORMAT)
     elif 19 < len(string) < 26:

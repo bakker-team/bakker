@@ -3,7 +3,7 @@ import json
 import os
 import stat
 
-from .utils import get_file_digest, get_symlink_digest, get_directory_digest, datetime_fromisoformat
+from .utils import get_file_digest, get_symlink_digest, get_directory_digest, datetime_from_iso_format
 
 
 class TreeNode:
@@ -34,7 +34,7 @@ class TreeNode:
             directory_digest = get_directory_digest(*child_checksums)
             return DirectoryNode(name, directory_digest, file_permissions, children)
         
-        raise Error('Unknown content.')
+        raise TypeError('Unknown content: ' + path)
 
     @staticmethod
     def from_dict(d):
@@ -45,7 +45,7 @@ class TreeNode:
         elif d['type'] == 'symlink':
             return SymlinkNode.from_dict(d)
 
-        raise Error('Type ' + d['name'] + ' does not exist.')
+        raise TypeError('Type ' + d['name'] + ' does not exist.')
 
 
 class DirectoryNode(TreeNode):
@@ -90,11 +90,12 @@ class SymlinkNode(TreeNode):
                 'type': 'symlink',
                }
 
+    @staticmethod
     def from_dict(d):
         return SymlinkNode(d['name'], d['checksum'], d['permissions'])
 
 
-class Tree:
+class Checkpoint:
     def __init__(self, path, root, time=None):
         self.path = path
         self.root = root
@@ -103,24 +104,24 @@ class Tree:
     def to_json(self):
         return json.dumps(dict(root=self.root.to_dict(), time=self.time.isoformat()), indent=2)
 
-    def dfs_iter(self):
+    def iter(self):
         stack = [(self.root, self.path)]
         while len(stack):
-           current_node, current_path = stack.pop()
-           yield current_node, current_path
+            current_node, current_path = stack.pop()
+            yield current_node, current_path
 
-           if isinstance(current_node, DirectoryNode):
-               for child_name, child_node in current_node.children.items():
-                   stack.append((child_node, os.path.join(current_path, child_name)))
+            if isinstance(current_node, DirectoryNode):
+                for child_name, child_node in current_node.children.items():
+                    stack.append((child_node, os.path.join(current_path, child_name)))
 
     @staticmethod
-    def build_tree(path):
+    def build_checkpoint(path):
         root = TreeNode.build_tree_node(path, '')
-        return Tree(path, root)
+        return Checkpoint(path, root)
 
     @staticmethod
     def from_json(json_str, path):
         tree_dict = json.loads(json_str)
 
-        return Tree(path, TreeNode.from_dict(tree_dict['root']), datetime_fromisoformat(tree_dict['time']))
+        return Checkpoint(path, TreeNode.from_dict(tree_dict['root']), datetime_from_iso_format(tree_dict['time']))
 

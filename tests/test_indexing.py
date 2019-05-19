@@ -1,7 +1,7 @@
 from os import path
 import unittest
 
-from pyback.tree import Tree
+from pyback.checkpoint import Checkpoint
 
 
 class TestIndexing(unittest.TestCase):
@@ -12,7 +12,7 @@ class TestIndexing(unittest.TestCase):
                 )
 
     def test_tree_building(self):
-        tree = Tree.build_tree(self.indexing_folder)
+        tree = Checkpoint.build_checkpoint(self.indexing_folder)
                 
         expected_children_count = 6
         self.assertEqual(expected_children_count, len(tree.root.children))
@@ -31,7 +31,7 @@ class TestIndexing(unittest.TestCase):
         file_permissions = 0o644
         symlink_permissions = 0o777
 
-        tree = Tree.build_tree(self.indexing_folder)
+        tree = Checkpoint.build_checkpoint(self.indexing_folder)
 
         self.assertEqual(tree.root.children['100000_lines.md'].permissions, file_permissions)
         self.assertEqual(tree.root.children['100000_lines_symlink'].permissions, symlink_permissions)
