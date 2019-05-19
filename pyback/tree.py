@@ -1,8 +1,9 @@
+from datetime import datetime
 import json
 import os
 import stat
 
-from .utils import get_file_digest, get_symlink_digest, get_directory_digest
+from .utils import get_file_digest, get_symlink_digest, get_directory_digest, datetime_fromisoformat
 
 
 class TreeNode:
@@ -94,12 +95,23 @@ class SymlinkNode(TreeNode):
 
 
 class Tree:
-    def __init__(self, path, root):
+    def __init__(self, path, root, time=None):
         self.path = path
         self.root = root
+        self.time = datetime.now() if time is None else time
 
     def to_json(self):
-        return json.dumps(self.root.to_dict(), indent=2)
+        return json.dumps(dict(root=self.root.to_dict(), time=self.time.isoformat()), indent=2)
+
+    def dfs_iter(self):
+        stack = [(self.root, self.path)]
+        while len(stack):
+           current_node, current_path = stack.pop()
+           yield current_node, current_path
+
+           if isinstance(current_node, DirectoryNode):
+               for child_name, child_node in current_node.children.items():
+                   stack.append((child_node, os.path.join(current_path, child_name)))
 
     @staticmethod
     def build_tree(path):
@@ -108,6 +120,7 @@ class Tree:
 
     @staticmethod
     def from_json(json_str, path):
-        root = TreeNode.from_dict(json.loads(json_str))
-        return Tree(path, root)
+        tree_dict = json.loads(json_str)
+
+        return Tree(path, TreeNode.from_dict(tree_dict['root']), datetime_fromisoformat(tree_dict['time']))
 

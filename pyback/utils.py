@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 
 import xxhash
@@ -23,6 +24,7 @@ def get_symlink_digest(symlink_path):
 
     message = xxhash.xxh64()
     message.update(os.readlink(symlink_path))
+
     return message.hexdigest()
 
 def get_directory_digest(*child_digests):
@@ -31,3 +33,11 @@ def get_directory_digest(*child_digests):
         message.update(child_digest)
     return message.hexdigest()
 
+TIME_ISO_FORMAT = '%Y-%m-%dT%H:%M:%S'
+TIME_ISO_FORMAT_MILLISECONDS = '%Y-%m-%dT%H:%M:%S.%f'
+
+def datetime_fromisoformat(string):
+    if len(string) == 19:
+        return datetime.strptime(string, TIME_ISO_FORMAT)
+    elif 19 < len(string) < 26:
+        return datetime.strptime(string, TIME_ISO_FORMAT_MILLISECONDS)
