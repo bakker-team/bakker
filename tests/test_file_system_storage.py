@@ -1,5 +1,6 @@
 import filecmp
 import os
+import stat
 import tempfile
 import unittest
 
@@ -53,6 +54,16 @@ class TestFileSystemStorage(unittest.TestCase):
 
         dir_comparison = filecmp.dircmp(self.TEST_RESOURCES_PATH, tmp_retrieve_path)
         self.assertEqual(dir_comparison.diff_files, [])
+
+        for dir_path, dir_names, filenames in os.walk(self.TEST_RESOURCES_PATH, followlinks=False):
+            rel_path = os.path.relpath(dir_path, self.TEST_RESOURCES_PATH)
+
+            for f in filenames:
+                original_path = os.path.join(self.TEST_RESOURCES_PATH, rel_path, f)
+                retrieve_path = os.path.join(tmp_retrieve_path, rel_path, f)
+                file_permissions_origin = stat.S_IMODE(os.lstat(original_path).st_mode)
+                file_permissions_restored = stat.S_IMODE(os.lstat(retrieve_path).st_mode)
+                self.assertEqual(file_permissions_origin, file_permissions_restored)
 
         # remove tmp directories after test
         tmp_store_dir.cleanup()
