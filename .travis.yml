@@ -1,0 +1,13 @@
+language: python
+
+python:
+
+  - "3.5"
+
+install:
+  - 'pip install pipenv --upgrade-strategy=only-if-needed'
+  - 'pipenv install'
+  - 'pipenv shell'
+
+script:
+  - 'python -m unittest'
