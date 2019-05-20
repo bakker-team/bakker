@@ -84,12 +84,13 @@ class FileSystemStorage(Storage):
             return Checkpoint.from_json(f.read(), '')
 
 
-def store(storage, checkpoint):
-    for node, node_path in checkpoint.iter():
+def store(src_dir_path, storage, checkpoint):
+    for node, relative_node_path in checkpoint.iter():
+        absolute_node_path = os.path.join(src_dir_path, relative_node_path)
         if isinstance(node, FileNode) and not storage.has_file(node.checksum):
-            storage.store_file(node_path, node.checksum)
+            storage.store_file(absolute_node_path, node.checksum)
         elif isinstance(node, SymlinkNode) and not storage.has_file(node.checksum):
-            storage.store_file(node_path, node.checksum)
+            storage.store_file(absolute_node_path, node.checksum)
 
     message = xxhash.xxh64()
     message.update(checkpoint.time.isoformat())
@@ -107,8 +108,8 @@ def retrieve(storage, checkpoint_id, dst_dir_path):
     """
 
     checkpoint = storage.retrieve_checkpoint(checkpoint_id)
-    for item, path in checkpoint.iter():
-        retrieve_file(item.checksum, )
+    for item, relative_file_path in checkpoint.iter():
+        storage.retrieve_file(item.checksum, dst_dir_path + relative_file_path)
 
 
 

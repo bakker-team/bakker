@@ -96,8 +96,7 @@ class SymlinkNode(TreeNode):
 
 
 class Checkpoint:
-    def __init__(self, path, root, time=None):
-        self.path = path
+    def __init__(self, root, time=None):
         self.root = root
         self.time = datetime.now() if time is None else time
 
@@ -105,7 +104,7 @@ class Checkpoint:
         return json.dumps(dict(root=self.root.to_dict(), time=self.time.isoformat()), indent=2)
 
     def iter(self):
-        stack = [(self.root, self.path)]
+        stack = [(self.root, '')]
         while len(stack):
             current_node, current_path = stack.pop()
             yield current_node, current_path
@@ -117,11 +116,11 @@ class Checkpoint:
     @staticmethod
     def build_checkpoint(path):
         root = TreeNode.build_tree_node(path, '')
-        return Checkpoint(path, root)
+        return Checkpoint(root)
 
     @staticmethod
-    def from_json(json_str, path):
+    def from_json(json_str):
         tree_dict = json.loads(json_str)
 
-        return Checkpoint(path, TreeNode.from_dict(tree_dict['root']), datetime_from_iso_format(tree_dict['time']))
+        return Checkpoint(TreeNode.from_dict(tree_dict['root']), datetime_from_iso_format(tree_dict['time']))
 

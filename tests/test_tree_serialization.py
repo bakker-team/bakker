@@ -16,11 +16,11 @@ class TestTreeSerialization(unittest.TestCase):
         self.assertIsInstance(tree_json, str)
 
     def test_deserialization(self):
-        new_tree = Checkpoint.from_json(self.tree.to_json(), '')
+        new_tree = Checkpoint.from_json(self.tree.to_json())
         self.assertIsInstance(new_tree, Checkpoint)
 
     def test_serialized_structure(self):
-        new_tree = Checkpoint.from_json(self.tree.to_json(), '')
+        new_tree = Checkpoint.from_json(self.tree.to_json())
         self.check_tree_nodes(self.tree.root, new_tree.root)
         
     def check_tree_nodes(self, tree_node_a, tree_node_b):
