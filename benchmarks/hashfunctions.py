@@ -1,7 +1,6 @@
 import xxhash
 import sys
 import time
-import hashlib
 
 
 def get_digest(hash_function, filename):
@@ -16,6 +15,7 @@ def get_digest(hash_function, filename):
         
     print(m.hexdigest())
 
+
 def benchmark(hash_function, filename, times): 
     start = time.time()
     for i in range(times):
@@ -23,6 +23,7 @@ def benchmark(hash_function, filename, times):
     end = time.time()
     print("Average in {} runs: {}.".format(times, (end-start)/times))
 
-benchmark(hashlib.md5, sys.argv[1], int(sys.argv[2]))
+
+benchmark(xxhash.xxh64, sys.argv[1], int(sys.argv[2]))
 
 
