@@ -7,7 +7,6 @@ python:
 install:
   - 'pip install pipenv --upgrade-strategy=only-if-needed'
   - 'pipenv install'
-  - 'pipenv shell'
 
 script:
   - 'python -m unittest'
