@@ -1,2 +1,2 @@
 [![build-status](https://img.shields.io/travis/2start/pyback.svg)](https://travis-ci.org/2start/pyback)
-![license](https://img.shields.io/github/license/2start/pyback.svg)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
