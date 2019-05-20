@@ -12,13 +12,12 @@ class Storage(ABC):
     def has_file(self, checksum):
         pass
 
-    # remove file path -> the storage should decide where and how to store the file
     @abstractmethod
     def store_file(self, file_path, checksum):
         pass
 
     @abstractmethod
-    def retrieve_file(self, checksum, dst_file_path):
+    def retrieve_file(self, checksum, dst_file_path, file_permissions):
         pass
 
     @abstractmethod
@@ -39,6 +38,7 @@ class FileSystemStorage(Storage):
     FILE_DIR = 'files'
     TREE_FILE_EXT = '.json'
     FILE_EXT = ''
+    REMOTE_PERMISSIONS = 0o440
     
     def __init__(self, path):
         self.path = path
@@ -49,19 +49,41 @@ class FileSystemStorage(Storage):
         return os.path.isfile(os.path.join(self.file_path, checksum + self.FILE_EXT))
 
     def store_file(self, src_file_path, checksum):
+        """ Stores a single file at the backup location
+
+        :param src_file_path: the file at the src_file_path is backed up to the storage location
+        :param checksum: identifies the file in the backup location
+
+        :raises IOError: If the source is not readable or the destination is not writable.
+        """
         dst_file_path = os.path.join(self.file_path, checksum + self.FILE_EXT)
+
         if os.path.isfile(dst_file_path):
             raise FileExistsError(checksum)
         if not os.path.exists(os.path.dirname(dst_file_path)):
             os.makedirs(os.path.dirname(dst_file_path))
-        shutil.copyfile(src_file_path, dst_file_path, follow_symlinks=False)
 
-    def retrieve_file(self, checksum, dst_file_path):
+        shutil.copy2(src_file_path, dst_file_path, follow_symlinks=False)
+        if not os.path.islink(dst_file_path):
+            os.chmod(dst_file_path, self.REMOTE_PERMISSIONS)
+
+    def retrieve_file(self, checksum, dst_file_path, file_permissions):
+        """ Retrieves a single file from the backup location
+
+        :param checksum: identifies the file in the backup location
+        :param dst_file_path: the file is copied to this destination
+        :param file_permissions: int that represents the file permissions (e.g. 0o644)
+
+        :raises IOError: If the source is not readable or the destination is not writable.
+        """
         src_file_path = os.path.join(self.file_path, checksum + self.FILE_EXT)
         # checks existence and returns true for broken symlinks
         if not os.path.lexists(src_file_path):
             raise FileNotFoundError(checksum)
-        shutil.copyfile(src_file_path, dst_file_path, follow_symlinks=False)
+
+        shutil.copy2(src_file_path, dst_file_path, follow_symlinks=False)
+        if not os.path.islink(dst_file_path):
+            os.chmod(dst_file_path, file_permissions)
 
     def store_checkpoint(self, checkpoint, checkpoint_id):
         tree_file_path = os.path.join(self.tree_path, checkpoint_id + self.TREE_FILE_EXT)
@@ -99,6 +121,7 @@ def store(src_dir_path, storage, checkpoint):
 
     storage.store_checkpoint(checkpoint, checkpoint_id)
 
+
 def retrieve(storage, checkpoint_id, dst_dir_path):
     checkpoint = storage.retrieve_checkpoint(checkpoint_id)
     for item, relative_item_path in checkpoint.iter():
@@ -107,7 +130,8 @@ def retrieve(storage, checkpoint_id, dst_dir_path):
             os.mkdir(item_path, item.permissions)
         if isinstance(item, SymlinkNode) or isinstance(item, FileNode):
             item_path = os.path.join(dst_dir_path, relative_item_path)
-            storage.retrieve_file(item.checksum, item_path)
+            storage.retrieve_file(item.checksum, item_path, item.permissions)
+
 
 
 

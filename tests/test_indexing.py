@@ -10,6 +10,7 @@ class TestIndexing(unittest.TestCase):
                 path.dirname(path.abspath(__file__)),
                 '../resources/tests/backup_indexing_test_folder'
                 )
+
     # TODO extend the test to verify that a correct checkpoint is built.
     def test_checkpoint_building(self):
         checkpoint = Checkpoint.build_checkpoint(self.indexing_folder)
