@@ -53,7 +53,7 @@ class FileSystemStorage(Storage):
         self.file_path = os.path.join(path, self.FILE_DIR)
 
     def has_file(self, checksum):
-        return os.path.isfile(os.path.join(self.file_path, checksum + self.FILE_EXT))
+        return os.path.lexists(os.path.join(self.file_path, checksum + self.FILE_EXT))
 
     def store_file(self, src_file_path, checksum):
         """ Stores a single file at the backup location
