@@ -1,3 +1,4 @@
+import filecmp
 import os
 import tempfile
 import unittest
@@ -8,10 +9,8 @@ from pyback.utils import get_file_digest, get_symlink_digest
 
 
 class TestFileSystemStorage(unittest.TestCase):
-    def setUp(self):
-        self.temp_dir = tempfile.TemporaryDirectory()
-        self.temp_path = self.temp_dir.name
-        self.storage = FileSystemStorage(self.temp_path)
+    CURR_DIR = os.path.dirname(os.path.abspath(__file__))
+    TEST_RESOURCES_PATH = os.path.join(CURR_DIR, '../resources/tests/backup_indexing_test_folder')
 
     def test_store(self):
         def dfs_file_checksums(path):
@@ -26,21 +25,35 @@ class TestFileSystemStorage(unittest.TestCase):
                 elif os.path.isfile(file_path):
                     yield get_file_digest(file_path)
 
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        test_resources_path = os.path.join(current_dir, '../resources/tests/backup_indexing_test_folder')
-        
-        checkpoint = Checkpoint.build_checkpoint(test_resources_path)
-        store(test_resources_path, self.storage, checkpoint)
+        checkpoint = Checkpoint.build_checkpoint(self.TEST_RESOURCES_PATH)
 
-        remote_file_checksums = os.listdir(os.path.join(self.temp_path, FileSystemStorage.FILE_DIR))
-        file_checksums = list(dfs_file_checksums(test_resources_path))
+        with tempfile.TemporaryDirectory() as temp_path:
+            storage = FileSystemStorage(temp_path)
+
+            store(self.TEST_RESOURCES_PATH, storage, checkpoint)
+
+            remote_file_checksums = os.listdir(os.path.join(temp_path, FileSystemStorage.FILE_DIR))
+            file_checksums = list(dfs_file_checksums(self.TEST_RESOURCES_PATH))
 
         self.assertCountEqual(remote_file_checksums, file_checksums)
 
-
     def test_retrieve(self):
-        pass
+        tmp_store_dir = tempfile.TemporaryDirectory()
+        tmp_store_path = tmp_store_dir.name
 
+        tmp_retrieve_dir = tempfile.TemporaryDirectory()
+        tmp_retrieve_path = tmp_retrieve_dir.name
 
-    def tearDown(self):
-        self.temp_dir.cleanup()
+        storage = FileSystemStorage(tmp_store_path)
+        checkpoint = Checkpoint.build_checkpoint(self.TEST_RESOURCES_PATH)
+        store(self.TEST_RESOURCES_PATH, storage, checkpoint)
+
+        checkpoint_id = storage.retrieve_checkpoint_ids()[0]
+        retrieve(storage, checkpoint_id, tmp_retrieve_path)
+
+        dir_comparison = filecmp.dircmp(self.TEST_RESOURCES_PATH, tmp_retrieve_path)
+        self.assertEqual(dir_comparison.diff_files, [])
+
+        # remove tmp directories after test
+        tmp_store_dir.cleanup()
+        tmp_retrieve_dir.cleanup()

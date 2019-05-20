@@ -4,7 +4,7 @@ import shutil
 
 import xxhash
 
-from pyback.checkpoint import Checkpoint, FileNode, SymlinkNode
+from pyback.checkpoint import Checkpoint, FileNode, SymlinkNode, DirectoryNode
 
 
 class Storage(ABC):
@@ -48,19 +48,20 @@ class FileSystemStorage(Storage):
     def has_file(self, checksum):
         return os.path.isfile(os.path.join(self.file_path, checksum + self.FILE_EXT))
 
-    def store_file(self, file_path, checksum):
+    def store_file(self, src_file_path, checksum):
         dst_file_path = os.path.join(self.file_path, checksum + self.FILE_EXT)
         if os.path.isfile(dst_file_path):
             raise FileExistsError(checksum)
         if not os.path.exists(os.path.dirname(dst_file_path)):
             os.makedirs(os.path.dirname(dst_file_path))
-        shutil.copyfile(file_path, dst_file_path, follow_symlinks=False)
+        shutil.copyfile(src_file_path, dst_file_path, follow_symlinks=False)
 
     def retrieve_file(self, checksum, dst_file_path):
         src_file_path = os.path.join(self.file_path, checksum + self.FILE_EXT)
-        if not os.path.isfile(src_file_path):
+        # checks existence and returns true for broken symlinks
+        if not os.path.lexists(src_file_path):
             raise FileNotFoundError(checksum)
-        shutil.copyfile(src_file_path, dst_file_path)
+        shutil.copyfile(src_file_path, dst_file_path, follow_symlinks=False)
 
     def store_checkpoint(self, checkpoint, checkpoint_id):
         tree_file_path = os.path.join(self.tree_path, checkpoint_id + self.TREE_FILE_EXT)
@@ -81,7 +82,7 @@ class FileSystemStorage(Storage):
         if not os.path.isfile(checkpoint_file_path):
             raise FileNotFoundError(checkpoint_id)
         with open(checkpoint_file_path, 'r') as f:
-            return Checkpoint.from_json(f.read(), '')
+            return Checkpoint.from_json(f.read())
 
 
 def store(src_dir_path, storage, checkpoint):
@@ -99,17 +100,14 @@ def store(src_dir_path, storage, checkpoint):
     storage.store_checkpoint(checkpoint, checkpoint_id)
 
 def retrieve(storage, checkpoint_id, dst_dir_path):
-    """ Retrieves a checkpoint from a backup directory and builds it inside path.
-
-    :param storage: The s
-    :param checkpoint:
-    :param path:
-    :return:
-    """
-
     checkpoint = storage.retrieve_checkpoint(checkpoint_id)
-    for item, relative_file_path in checkpoint.iter():
-        storage.retrieve_file(item.checksum, dst_dir_path + relative_file_path)
+    for item, relative_item_path in checkpoint.iter():
+        item_path = os.path.join(dst_dir_path, relative_item_path)
+        if isinstance(item, DirectoryNode) and not os.path.exists(item_path):
+            os.mkdir(item_path, item.permissions)
+        if isinstance(item, SymlinkNode) or isinstance(item, FileNode):
+            item_path = os.path.join(dst_dir_path, relative_item_path)
+            storage.retrieve_file(item.checksum, item_path)
 
 
 
