@@ -3,7 +3,7 @@ import os
 import tempfile
 import unittest
 
-from pyback.sync import FileSystemStorage, retrieve, store
+from pyback.storage import FileSystemStorage, retrieve, store
 from pyback.checkpoint import Checkpoint
 from pyback.utils import get_file_digest, get_symlink_digest
 
