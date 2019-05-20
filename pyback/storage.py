@@ -32,6 +32,13 @@ class Storage(ABC):
     def retrieve_checkpoint(self, checkpoint_id):
         pass
 
+    @abstractmethod
+    def store(self, src_dir_path, checkpoint):
+        pass
+
+    @abstractmethod
+    def retrieve(self, dst_dir_path, checkpoint_id):
+        pass
 
 class FileSystemStorage(Storage):
     TREE_DIR = 'checkpoints'
@@ -106,31 +113,29 @@ class FileSystemStorage(Storage):
         with open(checkpoint_file_path, 'r') as f:
             return Checkpoint.from_json(f.read())
 
+    def store(self, src_dir_path, checkpoint):
+        for node, relative_node_path in checkpoint.iter():
+            absolute_node_path = os.path.join(src_dir_path, relative_node_path)
+            if isinstance(node, FileNode) and not self.has_file(node.checksum):
+                self.store_file(absolute_node_path, node.checksum)
+            elif isinstance(node, SymlinkNode) and not self.has_file(node.checksum):
+                self.store_file(absolute_node_path, node.checksum)
 
-def store(src_dir_path, storage, checkpoint):
-    for node, relative_node_path in checkpoint.iter():
-        absolute_node_path = os.path.join(src_dir_path, relative_node_path)
-        if isinstance(node, FileNode) and not storage.has_file(node.checksum):
-            storage.store_file(absolute_node_path, node.checksum)
-        elif isinstance(node, SymlinkNode) and not storage.has_file(node.checksum):
-            storage.store_file(absolute_node_path, node.checksum)
+        message = xxhash.xxh64()
+        message.update(checkpoint.time.isoformat())
+        checkpoint_id = message.hexdigest()
 
-    message = xxhash.xxh64()
-    message.update(checkpoint.time.isoformat())
-    checkpoint_id = message.hexdigest()
+        self.store_checkpoint(checkpoint, checkpoint_id)
 
-    storage.store_checkpoint(checkpoint, checkpoint_id)
-
-
-def retrieve(storage, checkpoint_id, dst_dir_path):
-    checkpoint = storage.retrieve_checkpoint(checkpoint_id)
-    for item, relative_item_path in checkpoint.iter():
-        item_path = os.path.join(dst_dir_path, relative_item_path)
-        if isinstance(item, DirectoryNode) and not os.path.exists(item_path):
-            os.mkdir(item_path, item.permissions)
-        if isinstance(item, SymlinkNode) or isinstance(item, FileNode):
+    def retrieve(self, dst_dir_path, checkpoint_id):
+        checkpoint = self.retrieve_checkpoint(checkpoint_id)
+        for item, relative_item_path in checkpoint.iter():
             item_path = os.path.join(dst_dir_path, relative_item_path)
-            storage.retrieve_file(item.checksum, item_path, item.permissions)
+            if isinstance(item, DirectoryNode) and not os.path.exists(item_path):
+                os.mkdir(item_path, item.permissions)
+            if isinstance(item, SymlinkNode) or isinstance(item, FileNode):
+                item_path = os.path.join(dst_dir_path, relative_item_path)
+                self.retrieve_file(item.checksum, item_path, item.permissions)
 
 
 

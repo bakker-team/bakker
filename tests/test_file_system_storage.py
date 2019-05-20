@@ -4,7 +4,7 @@ import stat
 import tempfile
 import unittest
 
-from pyback.storage import FileSystemStorage, retrieve, store
+from pyback.storage import FileSystemStorage
 from pyback.checkpoint import Checkpoint
 from pyback.utils import get_file_digest, get_symlink_digest
 
@@ -31,7 +31,7 @@ class TestFileSystemStorage(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_path:
             storage = FileSystemStorage(temp_path)
 
-            store(self.TEST_RESOURCES_PATH, storage, checkpoint)
+            storage.store(self.TEST_RESOURCES_PATH, checkpoint)
 
             remote_file_checksums = os.listdir(os.path.join(temp_path, FileSystemStorage.FILE_DIR))
             file_checksums = list(dfs_file_checksums(self.TEST_RESOURCES_PATH))
@@ -47,10 +47,10 @@ class TestFileSystemStorage(unittest.TestCase):
 
         storage = FileSystemStorage(tmp_store_path)
         checkpoint = Checkpoint.build_checkpoint(self.TEST_RESOURCES_PATH)
-        store(self.TEST_RESOURCES_PATH, storage, checkpoint)
+        storage.store(self.TEST_RESOURCES_PATH, checkpoint)
 
         checkpoint_id = storage.retrieve_checkpoint_ids()[0]
-        retrieve(storage, checkpoint_id, tmp_retrieve_path)
+        storage.retrieve(tmp_retrieve_path, checkpoint_id)
 
         dir_comparison = filecmp.dircmp(self.TEST_RESOURCES_PATH, tmp_retrieve_path)
         self.assertEqual(dir_comparison.diff_files, [])
