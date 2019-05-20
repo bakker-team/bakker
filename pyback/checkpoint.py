@@ -19,22 +19,25 @@ class TreeNode:
     def build_tree_node(path, name):
         file_permissions = stat.S_IMODE(os.lstat(path).st_mode)
 
-        if os.path.isfile(path) and not os.path.islink(path):
-            return FileNode(name, get_file_digest(path), file_permissions)
-        elif os.path.islink(path):
+        if os.path.islink(path):
             return SymlinkNode(name, get_symlink_digest(path), file_permissions)
+        elif os.path.isfile(path):
+            return FileNode(name, get_file_digest(path), file_permissions)
         elif os.path.isdir(path):
             children = dict()
 
             for child_name in os.listdir(path):
                 child_path = os.path.join(path, child_name)
+                if not os.path.isfile(child_path) and not os.path.isdir(child_path):
+                    print("Ignored: " + child_path)
+                    continue
                 children[child_name] = TreeNode.build_tree_node(child_path, child_name)
 
             child_checksums = [children[child_name].checksum for child_name in sorted(children.keys())]
             directory_digest = get_directory_digest(*child_checksums)
             return DirectoryNode(name, directory_digest, file_permissions, children)
         
-        raise TypeError('Unknown content: ' + path)
+        print('Could not backup: ' + path)
 
     @staticmethod
     def from_dict(d):

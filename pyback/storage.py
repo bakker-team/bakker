@@ -40,6 +40,7 @@ class Storage(ABC):
     def retrieve(self, dst_dir_path, checkpoint_id):
         pass
 
+
 class FileSystemStorage(Storage):
     TREE_DIR = 'checkpoints'
     FILE_DIR = 'files'
