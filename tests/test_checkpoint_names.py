@@ -2,8 +2,8 @@ import os
 import tempfile
 import unittest
 
-from pyback.checkpoint import Checkpoint
-from pyback.storage import FileSystemStorage
+from bakker.checkpoint import Checkpoint
+from bakker.storage import FileSystemStorage
 
 
 class TestCheckpointNames(unittest.TestCase):

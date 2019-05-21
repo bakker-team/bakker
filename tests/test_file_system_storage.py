@@ -4,9 +4,9 @@ import stat
 import tempfile
 import unittest
 
-from pyback.storage import FileSystemStorage
-from pyback.checkpoint import Checkpoint
-from pyback.utils import get_file_digest, get_symlink_digest
+from bakker.storage import FileSystemStorage
+from bakker.checkpoint import Checkpoint
+from bakker.utils import get_file_digest, get_symlink_digest
 
 
 class TestFileSystemStorage(unittest.TestCase):

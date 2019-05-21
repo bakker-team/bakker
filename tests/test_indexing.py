@@ -2,7 +2,7 @@ import os
 import stat
 import unittest
 
-from pyback.checkpoint import Checkpoint
+from bakker.checkpoint import Checkpoint
 
 
 class TestIndexing(unittest.TestCase):

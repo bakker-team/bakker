@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from pyback.checkpoint import Checkpoint, DirectoryNode
+from bakker.checkpoint import Checkpoint, DirectoryNode
 
 
 class TestTreeSerialization(unittest.TestCase):
