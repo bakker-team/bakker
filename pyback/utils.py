@@ -42,5 +42,5 @@ def datetime_from_iso_format(string):
 
     if len(string) == 19:
         return datetime.strptime(string, TIME_ISO_FORMAT)
-    elif 19 < len(string) < 26:
+    elif 19 < len(string) <= 26:
         return datetime.strptime(string, TIME_ISO_FORMAT_MILLISECONDS)

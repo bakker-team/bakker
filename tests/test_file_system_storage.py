@@ -42,29 +42,44 @@ class TestFileSystemStorage(unittest.TestCase):
         tmp_store_dir = tempfile.TemporaryDirectory()
         tmp_store_path = tmp_store_dir.name
 
-        tmp_retrieve_dir = tempfile.TemporaryDirectory()
-        tmp_retrieve_path = tmp_retrieve_dir.name
+        tmp_retrieve_dir_a = tempfile.TemporaryDirectory()
+        tmp_retrieve_dir_b = tempfile.TemporaryDirectory()
+        tmp_retrieve_dir_c = tempfile.TemporaryDirectory()
+        tmp_retrieve_path_a = tmp_retrieve_dir_a.name
+        tmp_retrieve_path_b = tmp_retrieve_dir_b.name
+        tmp_retrieve_path_c = tmp_retrieve_dir_c.name
 
         storage = FileSystemStorage(tmp_store_path)
-        checkpoint = Checkpoint.build_checkpoint(self.TEST_RESOURCES_PATH)
+        checkpoint = Checkpoint.build_checkpoint(self.TEST_RESOURCES_PATH, 'checkpoint_name')
         storage.store(self.TEST_RESOURCES_PATH, checkpoint)
 
-        checkpoint_id = storage.retrieve_checkpoint_ids()[0]
-        storage.retrieve(tmp_retrieve_path, checkpoint_id)
+        checkpoint_meta = storage.retrieve_checkpoint_metas()[0]
 
-        dir_comparison = filecmp.dircmp(self.TEST_RESOURCES_PATH, tmp_retrieve_path)
-        self.assertEqual(dir_comparison.diff_files, [])
+        storage.retrieve(tmp_retrieve_path_a, checkpoint_meta)
+        storage.retrieve_by_checksum(tmp_retrieve_path_b, checkpoint_meta.checksum[:5])
+        storage.retrieve_by_name(tmp_retrieve_path_c, checkpoint_meta.name)
+
+        dir_comparison_a = filecmp.dircmp(self.TEST_RESOURCES_PATH, tmp_retrieve_path_a)
+        dir_comparison_b = filecmp.dircmp(self.TEST_RESOURCES_PATH, tmp_retrieve_path_b)
+        dir_comparison_c = filecmp.dircmp(self.TEST_RESOURCES_PATH, tmp_retrieve_path_c)
+
+        self.assertEqual(dir_comparison_a.diff_files, [])
+        self.assertEqual(dir_comparison_b.diff_files, [])
+        self.assertEqual(dir_comparison_c.diff_files, [])
 
         for dir_path, dir_names, filenames in os.walk(self.TEST_RESOURCES_PATH, followlinks=False):
             rel_path = os.path.relpath(dir_path, self.TEST_RESOURCES_PATH)
 
             for f in filenames:
                 original_path = os.path.join(self.TEST_RESOURCES_PATH, rel_path, f)
-                retrieve_path = os.path.join(tmp_retrieve_path, rel_path, f)
+                retrieve_path = os.path.join(tmp_retrieve_path_a, rel_path, f)
                 file_permissions_origin = stat.S_IMODE(os.lstat(original_path).st_mode)
                 file_permissions_restored = stat.S_IMODE(os.lstat(retrieve_path).st_mode)
                 self.assertEqual(file_permissions_origin, file_permissions_restored)
 
         # remove tmp directories after test
         tmp_store_dir.cleanup()
-        tmp_retrieve_dir.cleanup()
+
+        tmp_retrieve_dir_a.cleanup()
+        tmp_retrieve_dir_b.cleanup()
+        tmp_retrieve_dir_c.cleanup()
