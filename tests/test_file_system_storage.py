@@ -4,9 +4,10 @@ import stat
 import tempfile
 import unittest
 
+import xxhash
+
 from bakker.storage import FileSystemStorage
 from bakker.checkpoint import Checkpoint
-from bakker.utils import get_file_digest, get_symlink_digest
 
 
 class TestFileSystemStorage(unittest.TestCase):
@@ -22,9 +23,18 @@ class TestFileSystemStorage(unittest.TestCase):
                 if os.path.isdir(file_path):
                     yield from dfs_file_checksums(file_path)
                 elif os.path.islink(file_path):
-                    yield get_symlink_digest(file_path)
+                    message = xxhash.xxh64()
+                    message.update(os.readlink(file_path))
+                    yield message.hexdigest()
                 elif os.path.isfile(file_path):
-                    yield get_file_digest(file_path)
+                    BLOCKSIZE = 65536
+                    message = xxhash.xxh64()
+                    with open(file_path, 'rb') as f:
+                        file_buffer = f.read(BLOCKSIZE)
+                        while len(file_buffer) > 0:
+                            message.update(file_buffer)
+                            file_buffer = f.read(BLOCKSIZE)
+                    yield message.hexdigest()
 
         checkpoint = Checkpoint.build_checkpoint(self.TEST_RESOURCES_PATH)
 

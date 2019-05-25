@@ -4,7 +4,9 @@ import os
 import re
 import stat
 
-from .utils import get_file_digest, get_symlink_digest, get_directory_digest, datetime_from_iso_format
+import xxhash
+
+from .utils import datetime_from_iso_format
 
 
 class TreeNode:
@@ -17,26 +19,13 @@ class TreeNode:
         raise NotImplementedError()
 
     @staticmethod
-    def build_tree_node(path, name):
-        file_permissions = stat.S_IMODE(os.lstat(path).st_mode)
-
+    def build_node(path, name):
         if os.path.islink(path):
-            return SymlinkNode(name, get_symlink_digest(path), file_permissions)
+            return SymlinkNode.build_node(path, name)
         elif os.path.isfile(path):
-            return FileNode(name, get_file_digest(path), file_permissions)
+            return FileNode.build_node(path, name)
         elif os.path.isdir(path):
-            children = dict()
-
-            for child_name in os.listdir(path):
-                child_path = os.path.join(path, child_name)
-                if not os.path.isfile(child_path) and not os.path.isdir(child_path):
-                    print("Ignored: " + child_path)
-                    continue
-                children[child_name] = TreeNode.build_tree_node(child_path, child_name)
-
-            child_checksums = [children[child_name].checksum for child_name in sorted(children.keys())]
-            directory_digest = get_directory_digest(*child_checksums)
-            return DirectoryNode(name, directory_digest, file_permissions, children)
+            return DirectoryNode.build_node(path, name)
         
         print('Could not backup: ' + path)
 
@@ -67,6 +56,28 @@ class DirectoryNode(TreeNode):
                }
 
     @staticmethod
+    def build_node(path, name):
+        assert os.path.isdir(path)
+
+        permissions = stat.S_IMODE(os.lstat(path).st_mode)
+
+        children = dict()
+        for child_name in os.listdir(path):
+            child_path = os.path.join(path, child_name)
+            if not os.path.isfile(child_path) and not os.path.isdir(child_path):
+                print("Ignored: " + child_path)
+                continue
+            children[child_name] = TreeNode.build_node(child_path, child_name)
+
+        child_checksums = [children[child_name].checksum for child_name in sorted(children.keys())]
+        message = xxhash.xxh64()
+        for child_digest in child_checksums:
+            message.update(child_digest)
+        checksum = message.hexdigest()
+
+        return DirectoryNode(name, checksum, permissions, children)
+
+    @staticmethod
     def from_dict(d):
         return DirectoryNode(d['name'], d['checksum'], d['permissions'], {child['name']: TreeNode.from_dict(child) for child in d['children']})
 
@@ -81,6 +92,25 @@ class FileNode(TreeNode):
                }
 
     @staticmethod
+    def build_node(path, name):
+        assert os.path.isfile(path)
+        assert not os.path.islink(path)
+
+        permissions = stat.S_IMODE(os.lstat(path).st_mode)
+
+        BLOCKSIZE = 65536
+
+        message = xxhash.xxh64()
+        with open(path, 'rb') as f:
+            file_buffer = f.read(BLOCKSIZE)
+            while len(file_buffer) > 0:
+                message.update(file_buffer)
+                file_buffer = f.read(BLOCKSIZE)
+        checksum = message.hexdigest()
+
+        return FileNode(name, checksum, permissions)
+
+    @staticmethod
     def from_dict(d):
         return FileNode(d['name'], d['checksum'], d['permissions'])
 
@@ -93,6 +123,18 @@ class SymlinkNode(TreeNode):
                 'permissions': self.permissions,
                 'type': 'symlink',
                }
+
+    @staticmethod
+    def build_node(path, name):
+        assert os.path.islink(path)
+
+        permissions = stat.S_IMODE(os.lstat(path).st_mode)
+
+        message = xxhash.xxh64()
+        message.update(os.readlink(path))
+        checksum = message.hexdigest()
+
+        return SymlinkNode(name, checksum, permissions)
 
     @staticmethod
     def from_dict(d):
@@ -126,7 +168,7 @@ class Checkpoint:
 
     @staticmethod
     def build_checkpoint(path, name=None):
-        root = TreeNode.build_tree_node(path, '')
+        root = TreeNode.build_node(path, '')
         return Checkpoint(root, name=name)
 
     @staticmethod
