@@ -109,11 +109,15 @@ class FileSystemStorage(Storage):
             f.write(checkpoint.to_json())
 
     def retrieve_checkpoint_metas(self):
+        if not os.path.isdir(self.tree_path):
+            return []
         return [CheckpointMeta.from_string(checkpoint_file[:-len(self.TREE_FILE_EXT)])
                 for checkpoint_file in os.listdir(self.tree_path)
                 if checkpoint_file[-len(self.TREE_FILE_EXT):] == self.TREE_FILE_EXT]
 
     def retrieve_checkpoint(self, checkpoint_meta):
+        if not os.path.isdir(self.tree_path):
+            return
         checkpoint_files = [c for c in os.listdir(self.tree_path)
                             if c[-len(self.TREE_FILE_EXT):] == self.TREE_FILE_EXT]
 

@@ -1,6 +1,8 @@
 import json
 import os
 
+from bakker.storage import FileSystemStorage
+
 
 class Config:
     USER_DIR = os.path.expanduser('~')
@@ -49,6 +51,14 @@ class Config:
 
         keys = key.split('.')
         del_dict_item(self.config, keys)
+        self._save()
+
+    def __contains__(self, key):
+        try:
+            self.__getitem__(key)
+            return True
+        except KeyError:
+            return False
 
     def items(self):
         def build_items(d, prefix):
@@ -59,3 +69,8 @@ class Config:
                 elif isinstance(value, str):
                     yield next_prefix, value
         return build_items(self.config, None)
+
+
+DEFAULT_STORAGE_KEY = 'default.storage'
+DEFAULT_STORAGE_CHOICES = ['fs']
+STORAGE_FILE_SYSTEM_PATH = 'storage.file_system.path'
