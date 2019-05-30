@@ -49,3 +49,13 @@ class Config:
 
         keys = key.split('.')
         del_dict_item(self.config, keys)
+
+    def items(self):
+        def build_items(d, prefix):
+            for key, value in d.items():
+                next_prefix = prefix + '.' + key if prefix is not None else key
+                if isinstance(value, dict):
+                    yield from build_items(value, next_prefix)
+                elif isinstance(value, str):
+                    yield next_prefix, value
+        return build_items(self.config, None)
