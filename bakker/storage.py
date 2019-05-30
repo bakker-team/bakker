@@ -30,21 +30,55 @@ class Storage(ABC):
     def retrieve_checkpoint(self, checkpoint_meta):
         pass
 
-    @abstractmethod
     def store(self, src_dir_path, checkpoint):
-        pass
+        for node, relative_node_path in checkpoint.iter():
+            absolute_node_path = os.path.join(src_dir_path, relative_node_path)
+            if isinstance(node, FileNode) and not self.has_file(node.checksum):
+                self.store_file(absolute_node_path, node.checksum)
+            elif isinstance(node, SymlinkNode) and not self.has_file(node.checksum):
+                self.store_file(absolute_node_path, node.checksum)
 
-    @abstractmethod
+        self.store_checkpoint(checkpoint)
+
     def retrieve(self, dst_dir_path, checkpoint_meta):
-        pass
+        checkpoint = self.retrieve_checkpoint(checkpoint_meta)
+        for item, relative_item_path in checkpoint.iter():
+            item_path = os.path.join(dst_dir_path, relative_item_path)
+            if isinstance(item, DirectoryNode) and not os.path.exists(item_path):
+                os.mkdir(item_path, item.permissions)
+            if isinstance(item, SymlinkNode) or isinstance(item, FileNode):
+                item_path = os.path.join(dst_dir_path, relative_item_path)
+                self.retrieve_file(item.checksum, item_path, item.permissions)
 
-    @abstractmethod
     def retrieve_by_checksum(self, dst_dir_path, checksum):
-        pass
+        checkpoint_metas = self.retrieve_checkpoint_metas()
 
-    @abstractmethod
-    def retrieve_by_name(self, dst_dir_path, checksum):
-        pass
+        checkpoint_meta_candidates = []
+        for checkpoint_meta in checkpoint_metas:
+            if checkpoint_meta.checksum[:len(checksum)] == checksum:
+                checkpoint_meta_candidates.append(checkpoint_meta)
+
+        if len(checkpoint_meta_candidates) == 0:
+            raise FileNotFoundError(checksum)
+        elif len(checkpoint_meta_candidates) == 1:
+            self.retrieve(dst_dir_path, checkpoint_meta_candidates[0])
+        else:
+            raise NoUniqueMatchError(checksum)
+
+    def retrieve_by_name(self, dst_dir_path, name):
+        checkpoint_metas = self.retrieve_checkpoint_metas()
+
+        checkpoint_meta_candidates = []
+        for checkpoint_meta in checkpoint_metas:
+            if checkpoint_meta.name == name:
+                checkpoint_meta_candidates.append(checkpoint_meta)
+
+        if len(checkpoint_meta_candidates) == 0:
+            raise FileNotFoundError(name)
+        elif len(checkpoint_meta_candidates) == 1:
+            self.retrieve(dst_dir_path, checkpoint_meta_candidates[0])
+        else:
+            raise NoUniqueMatchError(name)
 
 
 class FileSystemStorage(Storage):
@@ -125,56 +159,6 @@ class FileSystemStorage(Storage):
         if checkpoint_file in checkpoint_files:
             with open(os.path.join(self.tree_path, checkpoint_file), 'r') as f:
                 return Checkpoint.from_json(f.read())
-
-    def store(self, src_dir_path, checkpoint):
-        for node, relative_node_path in checkpoint.iter():
-            absolute_node_path = os.path.join(src_dir_path, relative_node_path)
-            if isinstance(node, FileNode) and not self.has_file(node.checksum):
-                self.store_file(absolute_node_path, node.checksum)
-            elif isinstance(node, SymlinkNode) and not self.has_file(node.checksum):
-                self.store_file(absolute_node_path, node.checksum)
-
-        self.store_checkpoint(checkpoint)
-
-    def retrieve(self, dst_dir_path, checkpoint_meta):
-        checkpoint = self.retrieve_checkpoint(checkpoint_meta)
-        for item, relative_item_path in checkpoint.iter():
-            item_path = os.path.join(dst_dir_path, relative_item_path)
-            if isinstance(item, DirectoryNode) and not os.path.exists(item_path):
-                os.mkdir(item_path, item.permissions)
-            if isinstance(item, SymlinkNode) or isinstance(item, FileNode):
-                item_path = os.path.join(dst_dir_path, relative_item_path)
-                self.retrieve_file(item.checksum, item_path, item.permissions)
-
-    def retrieve_by_checksum(self, dst_dir_path, checksum):
-        checkpoint_metas = self.retrieve_checkpoint_metas()
-
-        checkpoint_meta_candidates = []
-        for checkpoint_meta in checkpoint_metas:
-            if checkpoint_meta.checksum[:len(checksum)] == checksum:
-                checkpoint_meta_candidates.append(checkpoint_meta)
-
-        if len(checkpoint_meta_candidates) == 0:
-            raise FileNotFoundError(checksum)
-        elif len(checkpoint_meta_candidates) == 1:
-            self.retrieve(dst_dir_path, checkpoint_meta_candidates[0])
-        else:
-            raise NoUniqueMatchError(checksum)
-
-    def retrieve_by_name(self, dst_dir_path, name):
-        checkpoint_metas = self.retrieve_checkpoint_metas()
-
-        checkpoint_meta_candidates = []
-        for checkpoint_meta in checkpoint_metas:
-            if checkpoint_meta.name == name:
-                checkpoint_meta_candidates.append(checkpoint_meta)
-
-        if len(checkpoint_meta_candidates) == 0:
-            raise FileNotFoundError(name)
-        elif len(checkpoint_meta_candidates) == 1:
-            self.retrieve(dst_dir_path, checkpoint_meta_candidates[0])
-        else:
-            raise NoUniqueMatchError(name)
 
 
 class NoUniqueMatchError(LookupError):
