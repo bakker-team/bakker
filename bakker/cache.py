@@ -4,10 +4,9 @@ from bakker.checkpoint import Checkpoint, SymlinkNode, FileNode
 
 
 class Cache:
-    def __init__(self, path, index):
-        self.path = path
-        # Mapping from file hashes to a tuple (file_path, is_moved) and a boolean flag is_moved.
-        # The flag is used to determine whether we have to copy the cached file instead
+    def __init__(self, index):
+        # Mapping from file hashes to a tuple (file_path, is_moved).
+        # The flag is_moved is used to determine whether we have to copy the cached file instead
         # of just moving it to a new location. This is relevant for duplicate files.
         self.index = index
 
