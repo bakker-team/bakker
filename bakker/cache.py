@@ -18,7 +18,7 @@ class Cache:
             if isinstance(node, FileNode) or isinstance(node, SymlinkNode):
                 index[node.checksum] = (path.join(dir_path, rel_path), False)
 
-        return Cache(path, index)
+        return Cache(index)
 
     def __getitem__(self, item):
         return self.index[item]
