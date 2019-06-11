@@ -18,34 +18,33 @@ class TestCache(unittest.TestCase):
         cache = Cache.build_cache(self.resources_path)
 
         file_path = os.path.join(self.resources_path, '100000_lines.md')
-        file_digest = utils.digest(file_path)
-        self.assertEqual(cache[file_digest][0], file_path)
+        file_checksum = utils.digest(file_path)
+        self.assertEqual(cache.get_file_path(file_checksum), file_path)
 
         symlink_path = os.path.join(self.resources_path, '100000_lines_symlink')
-        symlink_digest = utils.digest(symlink_path)
-        self.assertEqual(cache[symlink_digest][0], symlink_path)
+        symlink_checksum = utils.digest(symlink_path)
+        self.assertEqual(cache.get_file_path(symlink_checksum), symlink_path)
 
         nested_file_path = os.path.join(self.resources_path, 'folder1/folder3/folder8/hello-2.10.tar.gz')
-        nested_file_digest = utils.digest(nested_file_path)
-        self.assertEqual(cache[nested_file_digest][0], nested_file_path)
-
+        nested_file_checksum = utils.digest(nested_file_path)
+        self.assertEqual(cache.get_file_path(nested_file_checksum), nested_file_path)
 
     def test_cache_move(self):
         with tempfile.TemporaryDirectory() as tmp_path:
             cache = Cache.build_cache(self.resources_path)
 
             file_path = os.path.join(self.resources_path, '100000_lines.md')
-            file_digest = utils.digest(file_path)
+            file_checksum = utils.digest(file_path)
             new_file_path = os.path.join(tmp_path, 'filename.md')
-            cache.move_file(file_digest, new_file_path)
-            self.assertEqual(cache[file_digest][0], new_file_path)
-            self.assertEqual(cache.is_moved(file_digest), True)
+            cache.set_file_path(file_checksum, new_file_path)
+            self.assertEqual(cache.get_file_path(file_checksum), new_file_path)
+            self.assertEqual(cache.is_file_moved(file_checksum), True)
 
             symlink_path = os.path.join(self.resources_path, '100000_lines_symlink')
-            symlink_digest = utils.digest(symlink_path)
+            symlink_checksum = utils.digest(symlink_path)
             new_symlink_path = os.path.join(tmp_path, 'symlink')
-            cache.move_file(symlink_digest, new_symlink_path)
-            self.assertEqual(cache[symlink_digest][0], new_symlink_path)
-            self.assertEqual(cache.is_moved(symlink_digest), True)
+            cache.set_file_path(symlink_checksum, new_symlink_path)
+            self.assertEqual(cache.get_file_path(symlink_checksum), new_symlink_path)
+            self.assertEqual(cache.is_file_moved(symlink_checksum), True)
 
 

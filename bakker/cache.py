@@ -16,15 +16,21 @@ class Cache:
         index = {}
         for node, rel_path in checkpoint.iter():
             if isinstance(node, FileNode) or isinstance(node, SymlinkNode):
-                index[node.checksum] = (path.join(dir_path, rel_path), False)
+                index[node.checksum] = path.join(dir_path, rel_path), False
 
         return Cache(index)
 
-    def __getitem__(self, item):
-        return self.index[item]
+    def get_file_path(self, checksum):
+        try:
+            return self.index[checksum][0]
+        except KeyError:
+            return None
 
-    def move_file(self, file_digest, new_path):
-        self.index[file_digest] = (new_path, True)
+    def is_file_moved(self, checksum):
+        try:
+            return self.index[checksum][1]
+        except KeyError:
+            return None
 
-    def is_moved(self, file_digest):
-        return self.index[file_digest][1]
+    def set_file_path(self, checksum, new_path):
+        self.index[checksum] = new_path, True

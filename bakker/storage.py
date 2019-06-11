@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 import os
 import shutil
 
+from bakker.cache import Cache
 from bakker.checkpoint import Checkpoint, FileNode, SymlinkNode, DirectoryNode, CheckpointMeta
 
 
@@ -42,13 +43,25 @@ class Storage(ABC):
 
     def retrieve(self, dst_dir_path, checkpoint_meta):
         checkpoint = self.retrieve_checkpoint(checkpoint_meta)
+        cache = Cache.build_cache(dst_dir_path)
+
         for item, relative_item_path in checkpoint.iter():
             item_path = os.path.join(dst_dir_path, relative_item_path)
             if isinstance(item, DirectoryNode) and not os.path.exists(item_path):
                 os.mkdir(item_path, item.permissions)
             if isinstance(item, SymlinkNode) or isinstance(item, FileNode):
-                item_path = os.path.join(dst_dir_path, relative_item_path)
-                self.retrieve_file(item.checksum, item_path, item.permissions)
+                cached_item_path = cache.get_file_path(item.checksum)
+
+                if cached_item_path:
+                    if cache.is_file_moved(item.checksum):
+                        shutil.copy2(cached_item_path, item_path, follow_symlinks=False)
+                    else:
+                        shutil.move(cached_item_path, item_path)
+                        cache.set_file_path(item.checksum, item_path)
+                    os.chmod(item_path, item.permissions)
+                else:
+                    item_path = os.path.join(dst_dir_path, relative_item_path)
+                    self.retrieve_file(item.checksum, item_path, item.permissions)
 
     def retrieve_by_checksum(self, dst_dir_path, checksum):
         checkpoint_metas = self.retrieve_checkpoint_metas()
